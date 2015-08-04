@@ -565,7 +565,7 @@ struct qpnp_led_data {
  */
 struct rgb_sync {
 	struct led_classdev	cdev;
-	struct platform_device	*pdev;
+	struct spmi_device	*spmi_dev;
 	struct qpnp_led_data	*led_data[3];
 };
 
@@ -2761,7 +2761,7 @@ static void rgb_disable_leds(struct rgb_sync *rgb)
 	int i;
 	struct qpnp_led_data *led;
 
-	// TODO Implement synchronized off
+	//TODO Implement synchronized off
 	for (i = 0; i < 3; i++) {
 		led = rgb->led_data[i];
 		if (led && led->rgb_cfg->pwm_cfg->pwm_enabled) {
@@ -2790,7 +2790,7 @@ static int rgb_enable_leds(struct rgb_sync *rgb)
 
 		led->rgb_cfg->pwm_cfg->mode = LPG_MODE;
 		pwm_free(led->rgb_cfg->pwm_cfg->pwm_dev);
-		qpnp_pwm_init(led->rgb_cfg->pwm_cfg, led->pdev, led->cdev.name);
+		qpnp_pwm_init(led->rgb_cfg->pwm_cfg, led->spmi_dev, led->cdev.name);
 		pwm_dev[i] = led->rgb_cfg->pwm_cfg->pwm_dev;
 	}
 
@@ -2799,7 +2799,7 @@ static int rgb_enable_leds(struct rgb_sync *rgb)
 
 	rc = pwm_enable_synchronized(pwm_dev, i);
 	if (rc) {
-		dev_err(&rgb->pdev->dev, "Unable to enable pwms\n");
+		dev_err(&rgb->spmi_dev->dev, "Unable to enable pwms\n");
 		return rc;
 	}
 
@@ -2845,7 +2845,7 @@ static ssize_t rgb_blink_store(struct device *dev,
 		RGB_LED_EN_CTL(led->base),
 		enable, blinking ? enable : RGB_LED_DISABLE);
 	if (rc) {
-		dev_err(&led->pdev->dev,
+		dev_err(&led->spmi_dev->dev,
 			"Failed to write led enable reg\n");
 		rgb_unlock_leds(rgb_sync);
 		return rc;
@@ -2868,6 +2868,7 @@ static DEVICE_ATTR(lut_flags, 0664, NULL, lut_flags_store);
 static DEVICE_ATTR(duty_pcts, 0664, NULL, duty_pcts_store);
 static DEVICE_ATTR(blink, 0664, NULL, blink_store);
 static DEVICE_ATTR(rgb_blink, 0664, NULL, rgb_blink_store);
+
 static struct attribute *led_attrs[] = {
 	&dev_attr_led_mode.attr,
 	&dev_attr_strobe.attr,
@@ -2876,11 +2877,6 @@ static struct attribute *led_attrs[] = {
 
 static const struct attribute_group led_attr_group = {
 	.attrs = led_attrs,
-};
-
-static struct attribute *rgb_blink_attrs[] = {
-	&dev_attr_rgb_blink.attr,
-	NULL
 };
 
 static struct attribute *pwm_attrs[] = {
@@ -2900,6 +2896,11 @@ static struct attribute *lpg_attrs[] = {
 
 static struct attribute *blink_attrs[] = {
 	&dev_attr_blink.attr,
+	NULL
+};
+
+static struct attribute *rgb_blink_attrs[] = {
+	&dev_attr_rgb_blink.attr,
 	NULL
 };
 
@@ -4034,25 +4035,25 @@ static int qpnp_leds_probe(struct platform_device *pdev)
 	if (!led_array)
 		return -ENOMEM;
 
-	if (of_property_read_bool(node, "qcom,rgb_sync")) {
-		rgb_sync = devm_kzalloc(&pdev->dev,
+	if (of_property_read_bool(node, "qcom,rgb-sync")) {
+		rgb_sync = devm_kzalloc(&spmi->dev,
 			sizeof(struct rgb_sync), GFP_KERNEL);
 		if (!rgb_sync) {
-			dev_err(&pdev->dev, "Unable to allocate memory\n");
+			dev_err(&spmi->dev, "Unable to allocate memory\n");
 			kfree(led_array);
 			return -ENOMEM;
 		}
 		rgb_sync->cdev.name = "rgb";
-		rgb_sync->pdev = pdev;
-		rc = led_classdev_register(&pdev->dev, &rgb_sync->cdev);
+		rgb_sync->spmi_dev = spmi;
+		rc = led_classdev_register(&spmi->dev, &rgb_sync->cdev);
 		if (rc) {
-			dev_err(&pdev->dev, "unable to register rgb %d\n", rc);
+			dev_err(&spmi->dev, "unable to register rgb %d\n", rc);
 			goto fail_id_check;
 		}
 		rc = sysfs_create_group(&rgb_sync->cdev.dev->kobj,
 						&rgb_blink_attr_group);
 		if (rc) {
-			dev_err(&pdev->dev, "unable to create rgb sysfs %d\n", rc);
+			dev_err(&spmi->dev, "unable to create rgb sysfs %d\n", rc);
 			goto fail_id_check;
 		}
 	}
@@ -4263,7 +4264,6 @@ static int qpnp_leds_probe(struct platform_device *pdev)
 
 				if (rgb_sync)
 					rgb_sync->led_data[QPNP_ID_TO_RGB_IDX(led->id)] = led;
-
 			} else if (led->rgb_cfg->pwm_cfg->mode == LPG_MODE) {
 				rc = sysfs_create_group(&led->cdev.dev->kobj,
 					&lpg_attr_group);
