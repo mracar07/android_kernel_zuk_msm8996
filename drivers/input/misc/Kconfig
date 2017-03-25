@@ -997,3 +997,5 @@ config SENSORS_QCOM_HALL
 	help
 	  Say Y here if you want qcom hall sensor support.
 endif
+
+source "drivers/input/misc/vibrator/Kconfig"
