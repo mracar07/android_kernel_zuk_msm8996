@@ -128,6 +128,8 @@ struct msm_camera_i2c_seq_reg_setting32 {
 	uint16_t delay;
 };
 
+#endif
+
 struct msm_camera_i2c_reg_setting32 {
 	compat_uptr_t reg_setting;
 	uint16_t size;
@@ -156,8 +158,8 @@ struct msm_actuator_params_t32 {
 	uint16_t init_setting_size;
 	uint32_t i2c_addr;
 	enum i2c_freq_mode_t i2c_freq_mode;
-	enum msm_camera_i2c_reg_addr_type i2c_addr_type;
-	enum msm_camera_i2c_data_type i2c_data_type;
+	enum msm_actuator_addr_type i2c_addr_type;
+	enum msm_actuator_addr_type i2c_data_type;
 	compat_uptr_t reg_tbl_params;
 	compat_uptr_t init_settings;
 	struct park_lens_data_t park_lens;
@@ -291,4 +293,4 @@ struct msm_flash_cfg_data_t32 {
 
 #endif
 
-#endif
+
