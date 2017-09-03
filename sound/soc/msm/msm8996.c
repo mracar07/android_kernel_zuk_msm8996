@@ -31,7 +31,7 @@
 #include <sound/q6core.h>
 #include <sound/pcm_params.h>
 #include <sound/info.h>
-#include "device_event.h"
+#include <device_event.h>
 #include "qdsp6v2/msm-pcm-routing-v2.h"
 #include "../codecs/wcd9xxx-common.h"
 #include "../codecs/wcd9330.h"
@@ -59,7 +59,23 @@
 
 #define WSA8810_NAME_1 "wsa881x.20170211"
 #define WSA8810_NAME_2 "wsa881x.20170212"
+#define NCX_VTG_MIN_UV	3000000
+#define NCX_VTG_MAX_UV	3000000
 
+#define QUAT_MI2S_ENABLE
+#ifdef QUAT_MI2S_ENABLE
+atomic_t quat_mi2s_rsc_ref;
+atomic_t quat_mi2s_clk_ref;
+static bool system_bootup = 1;
+static struct afe_clk_set mi2s_rx_clk = {
+	AFE_API_VERSION_I2S_CONFIG,
+	Q6AFE_LPASS_CLK_ID_QUAD_MI2S_IBIT,
+	Q6AFE_LPASS_IBIT_CLK_1_P536_MHZ,
+	Q6AFE_LPASS_CLK_ATTRIBUTE_COUPLE_NO,
+	Q6AFE_LPASS_CLK_ROOT_DEFAULT,
+	0,
+};
+#endif 
 static int slim0_rx_sample_rate = SAMPLING_RATE_48KHZ;
 static int slim0_tx_sample_rate = SAMPLING_RATE_48KHZ;
 static int slim1_tx_sample_rate = SAMPLING_RATE_48KHZ;
@@ -88,10 +104,10 @@ static int msm_hdmi_rx_ch = 2;
 static int msm_proxy_rx_ch = 2;
 static int hdmi_rx_sample_rate = SAMPLING_RATE_48KHZ;
 static int msm_tert_mi2s_tx_ch = 2;
-static int pm8996_ear_enable_states;
+static int msm_quat_mi2s_ch = 2;
 
 static bool codec_reg_done;
-
+u64 wsa_dev_id;
 static const char *const hifi_function[] = {"Off", "On"};
 static const char *const pin_states[] = {"Disable", "active"};
 static const char *const spk_function[] = {"Off", "On"};
@@ -119,7 +135,6 @@ static const char *const proxy_rx_ch_text[] = {"One", "Two", "Three", "Four",
 
 static char const *hdmi_rx_sample_rate_text[] = {"KHZ_48", "KHZ_96",
 					"KHZ_192"};
-static const char *const pm8996_ear_enable_states_text[] = {"Disable", "Enable"};
 
 static const char *const auxpcm_rate_text[] = {"8000", "16000"};
 static const struct soc_enum msm8996_auxpcm_enum[] = {
@@ -148,7 +163,6 @@ struct msm8996_asoc_mach_data {
 	int us_euro_gpio;
 	int hph_en1_gpio;
 	int hph_en0_gpio;
-	int ear_en_gpio;
 	struct snd_info_entry *codec_root;
 };
 
@@ -186,10 +200,10 @@ static struct wcd_mbhc_config wcd_mbhc_cfg = {
 	.mono_stero_detection = false,
 	.swap_gnd_mic = NULL,
 	.hs_ext_micbias = true,
-	.key_code[0] = KEY_MEDIA,
-	.key_code[1] = KEY_VOICECOMMAND,
-	.key_code[2] = KEY_VOLUMEUP,
-	.key_code[3] = KEY_VOLUMEDOWN,
+	.key_code[0] = BTN_0,
+	.key_code[1] = BTN_1,
+	.key_code[2] = BTN_2,
+	.key_code[3] = BTN_3,
 	.key_code[4] = 0,
 	.key_code[5] = 0,
 	.key_code[6] = 0,
@@ -197,9 +211,45 @@ static struct wcd_mbhc_config wcd_mbhc_cfg = {
 	.linein_th = 5000,
 	.moisture_en = true,
 	.mbhc_micbias = MIC_BIAS_2,
-	.anc_micbias = MIC_BIAS_3,
-	.enable_anc_mic_detect = true,
+	.anc_micbias = MIC_BIAS_2,
+	.enable_anc_mic_detect = false,
 };
+
+#define HEADSET_TYPE_STANDARD
+#ifdef HEADSET_TYPE_STANDARD
+static int gnd_mic_gpio_state = -1;
+static int headset_standard_get = 0;
+static int headset_type_standard = -1; // 0 America, 1 Europe standard
+
+static int headset_standard_get_parm_set(const char *val, struct kernel_param *kp)
+{
+	param_set_int(val, kp);
+
+	if (1 == headset_standard_get) {
+		if (-1 == gnd_mic_gpio_state)
+			headset_type_standard = 0;
+		else
+			headset_type_standard = gnd_mic_gpio_state;
+			printk(KERN_INFO "%s enter, headset_type_standard = %d\n",
+			__func__, headset_type_standard);
+	} else {
+		printk(KERN_INFO "enter %s, clear the headset/headphone type\n", __func__);
+			headset_type_standard = -1;
+	}
+	return 0;
+}
+module_param_call(headset_standard_get, headset_standard_get_parm_set, param_get_int,
+        &headset_standard_get, 0644);
+
+static int headset_type_standard_parm_set(const char *val, struct kernel_param *kp)
+{
+    param_set_int(val, kp);
+
+    return 0;
+}
+module_param_call(headset_type_standard, headset_type_standard_parm_set, param_get_int,
+        &headset_type_standard, 0644);
+#endif
 
 static inline int param_is_mask(int p)
 {
@@ -1259,61 +1309,6 @@ static int hdmi_rx_sample_rate_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int pm8996_ear_enable_get(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	int gpio_state = 0;
-
-	switch (pm8996_ear_enable_states) {
-	case 1:
-		gpio_state = 1;
-		break;
-	case 0:
-	default:
-		gpio_state = 0;
-		break;
-	}
-
-	ucontrol->value.integer.value[0] = gpio_state;
-	pr_debug("%s: pm8996_ear_enable_states = %d\n", __func__,
-			pm8996_ear_enable_states);
-
-	return 0;
-}
-
-static int pm8996_ear_enable_put(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	int ret;
-	struct snd_soc_card *card = platform_get_drvdata(spdev);
-	struct msm8996_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
-
-	pr_debug("%s: ucontrol value = %ld\n", __func__,
-			ucontrol->value.integer.value[0]);
-
-	if (pdata->ear_en_gpio >= 0) {
-		ret = gpio_request(pdata->ear_en_gpio, "ear_en_gpio");
-		if (ret) {
-			pr_err("%s: request ear_en_gpio failed, ret:%d\n",
-				__func__, ret);
-			return ret;
-		}
-		switch (ucontrol->value.integer.value[0]) {
-		case 1:
-			gpio_set_value(pdata->ear_en_gpio, 1);
-			break;
-		case 0:
-		default:
-			gpio_set_value(pdata->ear_en_gpio, 0);
-			break;
-		}
-		gpio_free(pdata->ear_en_gpio);
-		pm8996_ear_enable_states = ucontrol->value.integer.value[0];
-	}
-
-	return 0;
-}
-
 static int msm8996_auxpcm_rate_get(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
@@ -1613,6 +1608,72 @@ static int msm_slim_5_tx_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return rc;
 }
 
+#ifdef QUAT_MI2S_ENABLE
+static int msm8996_quat_mi2s_startup(struct snd_pcm_substream *substream)
+{
+	int ret = 0;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+
+	pr_info("%s: dai name %s %p\n", __func__, cpu_dai->name, cpu_dai->dev);
+        if (atomic_inc_return(&quat_mi2s_rsc_ref) == 1) {
+            pr_info("%s: acquire mi2s resources\n", __func__);
+    	    if (atomic_inc_return(&quat_mi2s_clk_ref) == 1) {
+                mi2s_rx_clk.enable = 1;
+                ret = afe_set_lpass_clock_v2(AFE_PORT_ID_QUATERNARY_MI2S_RX, &mi2s_rx_clk);
+                if (ret < 0) {
+                    pr_err("%s: afe_set_lpass_clock failed\n", __func__);
+                    return ret;
+                }
+                ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_CBS_CFS);
+                if (ret < 0)
+                    dev_err(cpu_dai->dev, "set format for CPU dai"
+                    " failed\n");
+    	    }
+        }
+	return ret;
+}
+
+static void msm8996_quat_mi2s_shutdown(struct snd_pcm_substream *substream)
+{
+	int ret = 0;
+
+	pr_debug("%s: substream = %s  stream = %d\n", __func__,
+		substream->name, substream->stream);
+        if (atomic_dec_return(&quat_mi2s_rsc_ref) == 0) {
+            if (atomic_dec_return(&quat_mi2s_clk_ref) == 0) {
+                 mi2s_rx_clk.enable = 0;
+                 ret = afe_set_lpass_clock_v2(AFE_PORT_ID_QUATERNARY_MI2S_RX,
+                 			&mi2s_rx_clk);
+                 if (ret < 0)
+                 	pr_err("%s: afe lpass clock failed, err:%d\n", __func__, ret);
+               }
+        }
+}
+
+static struct snd_soc_ops msm8996_quat_mi2s_be_ops = {
+    .startup = msm8996_quat_mi2s_startup,
+    .shutdown = msm8996_quat_mi2s_shutdown
+
+};
+#endif
+
+static int msm_be_quat_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
+				  struct snd_pcm_hw_params *params)
+{
+	struct snd_interval *rate = hw_param_interval(params,
+					SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_interval *channels = hw_param_interval(params,
+					SNDRV_PCM_HW_PARAM_CHANNELS);
+
+	pr_debug("%s: channel:%d\n", __func__, msm_quat_mi2s_ch);
+	rate->min = rate->max = SAMPLING_RATE_48KHZ;
+	channels->min = channels->max = msm_quat_mi2s_ch;
+	param_set_mask(params, SNDRV_PCM_HW_PARAM_FORMAT,
+				SNDRV_PCM_FORMAT_S16_LE);
+	return 0;
+}
+
 static int msm_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 				  struct snd_pcm_hw_params *params)
 {
@@ -1645,7 +1706,6 @@ static const struct soc_enum msm_snd_enum[] = {
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(slim6_rx_bit_format_text),
 			    slim6_rx_bit_format_text),
 	SOC_ENUM_SINGLE_EXT(2, slim6_rx_ch_text),
-	SOC_ENUM_SINGLE_EXT(2, pm8996_ear_enable_states_text),
 };
 
 static const struct snd_kcontrol_new msm_snd_controls[] = {
@@ -1692,9 +1752,6 @@ static const struct snd_kcontrol_new msm_snd_controls[] = {
 			msm8996_hifi_put),
 	SOC_ENUM_EXT("VI_FEED_TX Channels", msm_snd_enum[12],
 			msm_vi_feed_tx_ch_get, msm_vi_feed_tx_ch_put),
-	SOC_ENUM_EXT("PM8996_Ear_Enable_States", msm_snd_enum[16],
-		pm8996_ear_enable_get,
-		pm8996_ear_enable_put),
 };
 
 static bool msm8996_swap_gnd_mic(struct snd_soc_codec *codec)
@@ -1706,6 +1763,23 @@ static bool msm8996_swap_gnd_mic(struct snd_soc_codec *codec)
 
 	pr_debug("%s: swap select switch %d to %d\n", __func__, value, !value);
 	gpio_set_value_cansleep(pdata->us_euro_gpio, !value);
+
+	gnd_mic_gpio_state = !value;
+
+	return true;
+}
+static bool msm8996_default_gnd_mic(struct snd_soc_codec *codec)
+{
+	struct snd_soc_card *card = codec->component.card;
+	struct msm8996_asoc_mach_data *pdata =
+				snd_soc_card_get_drvdata(card);
+	int value = 0;
+
+	pr_debug("%s: set select switch to default value %d\n", __func__, value);
+	gpio_set_value_cansleep(pdata->us_euro_gpio, value);
+
+	gnd_mic_gpio_state = 0;
+
 	return true;
 }
 
@@ -2084,7 +2158,7 @@ static void *def_tasha_mbhc_cal(void)
 	}
 
 #define S(X, Y) ((WCD_MBHC_CAL_PLUG_TYPE_PTR(tasha_wcd_cal)->X) = (Y))
-	S(v_hs_max, 1700);
+	S(v_hs_max, 1500);
 #undef S
 #define S(X, Y) ((WCD_MBHC_CAL_BTN_DET_PTR(tasha_wcd_cal)->X) = (Y))
 	S(num_btn, WCD_MBHC_DEF_BUTTONS);
@@ -2095,7 +2169,7 @@ static void *def_tasha_mbhc_cal(void)
 		(sizeof(btn_cfg->_v_btn_low[0]) * btn_cfg->num_btn);
 
 	btn_high[0] = 75;
-	btn_high[1] = 137;
+	btn_high[1] = 150;
 	btn_high[2] = 237;
 	btn_high[3] = 500;
 	btn_high[4] = 500;
@@ -3024,6 +3098,23 @@ static struct snd_soc_dai_link msm8996_common_dai_links[] = {
 		.codec_name = "snd-soc-dummy",
 		.be_id = MSM_FRONTEND_DAI_VOICE2,
 	},
+#ifdef QUAT_MI2S_ENABLE
+	{
+		.name = "MI2S_TX Hostless",
+		.stream_name = "MI2S_TX Hostless",
+		.cpu_dai_name   = "MI2S_TX_HOSTLESS",
+		.platform_name  = "msm-pcm-hostless",
+		.dynamic = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
+		.ignore_suspend = 1,
+		/* this dainlink has playback support */
+		.ignore_pmdown_time = 1,
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+	},
+#endif
 };
 
 static struct snd_soc_dai_link msm8996_tasha_fe_dai_links[] = {
@@ -3240,7 +3331,37 @@ static struct snd_soc_dai_link msm8996_common_be_dai_links[] = {
 		.be_hw_params_fixup = msm_tx_be_hw_params_fixup,
 		.ops = &msm8996_mi2s_be_ops,
 		.ignore_suspend = 1,
-	}
+	},
+#ifdef QUAT_MI2S_ENABLE
+	{
+		.name = LPASS_BE_QUAT_MI2S_RX,
+		.stream_name = "Quaternary MI2S Playback",
+		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.platform_name = "msm-pcm-routing",
+		.codec_name     = "msm-stub-codec.1",
+		.codec_dai_name = "msm-stub-rx",
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+		.be_hw_params_fixup = msm_be_quat_hw_params_fixup,
+		.ops = &msm8996_quat_mi2s_be_ops,
+		.ignore_suspend = 1,
+	},
+	{
+		.name = LPASS_BE_QUAT_MI2S_TX,
+		.stream_name = "Quaternary MI2S Capture",
+		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.platform_name = "msm-pcm-routing",
+		.codec_name     = "msm-stub-codec.1",
+		.codec_dai_name = "msm-stub-tx",
+		.no_pcm = 1,
+		.dpcm_capture = 1,
+		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_TX,
+		.be_hw_params_fixup = msm_be_quat_hw_params_fixup,
+		.ops = &msm8996_quat_mi2s_be_ops,
+		.ignore_suspend = 1,
+	},
+#endif
 };
 
 static struct snd_soc_dai_link msm8996_tasha_be_dai_links[] = {
@@ -3921,8 +4042,15 @@ static int msm8996_asoc_machine_probe(struct platform_device *pdev)
 	}
 
 	ret = msm8996_init_wsa_dev(pdev, card);
-	if (ret)
-		goto err;
+#if defined CONFIG_MACH_ZUK_Z2_PLUS
+	if (ret){
+		if(wsa_dev_id == 0x21170214)
+			printk("msm8996_init_wsa_dev wsa_dev_id:%llx\n", wsa_dev_id);
+		else{
+			goto err;
+		}
+	}
+#endif
 
 	pdata->hph_en1_gpio = of_get_named_gpio(pdev->dev.of_node,
 						"qcom,hph-en1-gpio", 0);
@@ -3941,7 +4069,13 @@ static int msm8996_asoc_machine_probe(struct platform_device *pdev)
 	if (ret)
 		dev_dbg(&pdev->dev, "msm8996_prepare_hifi failed (%d)\n",
 			ret);
-
+#ifdef QUAT_MI2S_ENABLE
+	if(system_bootup){
+		system_bootup = 0;
+		atomic_set(&quat_mi2s_rsc_ref, 0);
+		atomic_set(&quat_mi2s_clk_ref, 0);
+	}
+#endif
 	ret = snd_soc_register_card(card);
 	if (ret == -EPROBE_DEFER) {
 		if (codec_reg_done)
@@ -3987,25 +4121,45 @@ static int msm8996_asoc_machine_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "%s detected %d",
 			"qcom,us-euro-gpios", pdata->us_euro_gpio);
 		wcd_mbhc_cfg.swap_gnd_mic = msm8996_swap_gnd_mic;
+		wcd_mbhc_cfg.default_gnd_mic = msm8996_default_gnd_mic;
 	}
 
 	ret = msm8996_prepare_us_euro(card);
 	if (ret)
 		dev_info(&pdev->dev, "msm8996_prepare_us_euro failed (%d)\n",
 			ret);
-
-	/* Parse EAR_EN info for NX5L2750C */
-	pdata->ear_en_gpio = of_get_named_gpio(pdev->dev.of_node,
-				"qcom,ear-en-gpios", 0);
-	if (pdata->ear_en_gpio < 0) {
-		dev_err(&pdev->dev, "property %s not detected in node %s",
-			"qcom,ear-en-gpios",
-			pdev->dev.of_node->full_name);
-		ret = -ENODEV;
-		goto err;
+#ifdef NCX8200
+	/* Enable VDD for NCX8200*/
+	wcd_mbhc_cfg.vdd = regulator_get(&pdev->dev, "ncx_vdd");
+	dev_info(&pdev->dev,
+			"Regulator get ncx_vdd ret=%d\n", ret);
+	if (IS_ERR(wcd_mbhc_cfg.vdd)) {
+		ret = PTR_ERR(wcd_mbhc_cfg.vdd);
+		dev_info(&pdev->dev,
+			"Regulator get failed vdd ret=%d\n", ret);
+	} else if (regulator_count_voltages(wcd_mbhc_cfg.vdd) > 0) {
+		ret = regulator_set_voltage(wcd_mbhc_cfg.vdd, NCX_VTG_MIN_UV, NCX_VTG_MAX_UV);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"Regulator set_vtg failed vdd ret=%d\n", ret);
+			goto err_vdd_put;
+		}
 	}
 
+	if (!IS_ERR(wcd_mbhc_cfg.vdd)) {
+		ret = regulator_enable(wcd_mbhc_cfg.vdd);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"Regulator vdd enable failed ret=%d\n", ret);
+		}
+	}
+#endif
 	return 0;
+
+#ifdef NCX8200
+err_vdd_put:
+	regulator_put(wcd_mbhc_cfg.vdd);
+#endif
 err:
 	if (pdata->us_euro_gpio > 0) {
 		dev_dbg(&pdev->dev, "%s free us_euro gpio %d\n",
@@ -4024,11 +4178,6 @@ err:
 			__func__, pdata->hph_en0_gpio);
 		gpio_free(pdata->hph_en0_gpio);
 		pdata->hph_en0_gpio = 0;
-	}
-	if (pdata->ear_en_gpio > 0) {
-		dev_dbg(&pdev->dev, "%s initialize ear_en gpio %d\n",
-			__func__, pdata->ear_en_gpio);
-		pdata->ear_en_gpio = 0;
 	}
 	devm_kfree(&pdev->dev, pdata);
 	return ret;

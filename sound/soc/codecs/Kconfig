@@ -873,8 +873,12 @@ config SND_SOC_WM8804_I2C
 	tristate "Wolfson Microelectronics WM8804 S/PDIF transceiver I2C"
 	depends on I2C
 	select SND_SOC_WM8804
-	select REGMAP_I2C
-
+	select REGMAP_I2C  
+config NXP_TFA98xx  
+        depends on I2C  
+        tristate "NXP TFA98xx Support"  
+        ---help---  
+         The NXP TFA98xx chip is used as a  smart PA Controller.  
 config SND_SOC_WM8804_SPI
 	tristate "Wolfson Microelectronics WM8804 S/PDIF transceiver SPI"
 	depends on SPI_MASTER
@@ -1002,3 +1006,5 @@ source "sound/soc/codecs/sdm660_cdc/Kconfig"
 source "sound/soc/codecs/msm_sdw/Kconfig"
 
 endmenu
+
+

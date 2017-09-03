@@ -6013,11 +6013,6 @@ static int tasha_codec_enable_dec(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_update_bits(codec, hpf_gate_reg, 0x01, 0x00);
 
-		if (decimator == 0) {
-			snd_soc_write(codec, WCD9335_MBHC_ZDET_RAMP_CTL, 0x83);
-			snd_soc_write(codec, WCD9335_MBHC_ZDET_RAMP_CTL, 0xA3);
-			snd_soc_write(codec, WCD9335_MBHC_ZDET_RAMP_CTL, 0x83);
-			snd_soc_write(codec, WCD9335_MBHC_ZDET_RAMP_CTL, 0x03);
 		}
 		/* schedule work queue to Remove Mute */
 		schedule_delayed_work(&tasha->tx_mute_dwork[decimator].dwork,
@@ -14529,3 +14524,5 @@ module_platform_driver(tasha_codec_driver);
 
 MODULE_DESCRIPTION("Tasha Codec driver");
 MODULE_LICENSE("GPL v2");
+
+
