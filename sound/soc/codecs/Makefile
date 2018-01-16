@@ -189,6 +189,7 @@ snd-soc-wm8960-objs := wm8960.o
 snd-soc-wm8961-objs := wm8961.o
 snd-soc-wm8962-objs := wm8962.o
 snd-soc-wm8971-objs := wm8971.o
+snd-soc-tfa98xx-objs := tfa9890.o
 snd-soc-wm8974-objs := wm8974.o
 snd-soc-wm8978-objs := wm8978.o
 snd-soc-wm8983-objs := wm8983.o
@@ -426,7 +427,7 @@ obj-$(CONFIG_SND_SOC_MSM_STUB)  += snd-soc-msm-stub.o
 obj-$(CONFIG_SND_SOC_MAX9877)	+= snd-soc-max9877.o
 obj-$(CONFIG_SND_SOC_TPA6130A2)	+= snd-soc-tpa6130a2.o
 
-obj-$(CONFIG_NXP_TFA98xx)       +=tfa98xx/ 
+obj-$(CONFIG_NXP_TFA98xx)       += snd-soc-tfa98xx.o
 obj-y += sdm660_cdc/
 obj-y += msm_sdw/
 
