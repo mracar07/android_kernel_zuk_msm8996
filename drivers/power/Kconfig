@@ -636,6 +636,14 @@ config MSM_BCL_PERIPHERAL_CTL
 	  provides routines to configure and monitor the BCL
 	  PMIC peripheral.
 
+config FAST_CHARGE
+       bool "Enable Fast Charge"
+       depends on QPNP_SMBCHARGER
+       default y
+       help
+         This Fast-Charge Driver allows to use a custom fast charge current
+         configurable via sysfs.
+
 source "drivers/power/reset/Kconfig"
 
 endif # POWER_SUPPLY
