@@ -22,9 +22,9 @@ mdss-mdp-objs += mdss_mdp_wfd.o
 obj-$(CONFIG_FB_MSM_MDSS) += mdss-mdp.o
 obj-$(CONFIG_FB_MSM_MDSS) += mdss_mdp_debug.o
 
-#ifdef CONFIG_MACH_ZUK_Z2_ROW
+ifeq ($(CONFIG_MACH_ZUK_Z2_ROW), y)
 mdss-mdp-objs += lcd_effect.o
-#endif
+endif
 
 mdss-mdp-objs += mdss_mdp_pp_v1_7.o
 mdss-mdp-objs += mdss_mdp_pp_v3.o
