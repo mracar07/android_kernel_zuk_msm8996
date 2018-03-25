@@ -26,7 +26,11 @@
 #include <linux/fastchg.h>
 #include <linux/string.h>
 
+#ifdef CONFIG_FAST_CHARGE
+int force_fast_charge = 1;
+#else
 int force_fast_charge = 0;
+#endif
 
 static int __init get_fastcharge_opt(char *ffc)
 {
