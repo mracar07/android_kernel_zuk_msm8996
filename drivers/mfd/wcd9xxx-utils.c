@@ -26,6 +26,7 @@
 #include <linux/mfd/msm-cdc-supply.h>
 #include <linux/mfd/msm-cdc-pinctrl.h>
 #include <linux/mfd/wcd9xxx/wcd9xxx-utils.h>
+#include <linux/regmap.h>
 
 #define REG_BYTES 2
 #define VAL_BYTES 1

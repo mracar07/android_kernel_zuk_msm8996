@@ -20,6 +20,7 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/mfd/msm-cdc-pinctrl.h>
+#include <linux/pinctrl/consumer.h>
 
 struct msm_cdc_pinctrl_info {
 	struct pinctrl *pinctrl;
