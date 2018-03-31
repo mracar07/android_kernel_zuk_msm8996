@@ -22,7 +22,7 @@
 
 /* Definition moved to linux/pmic-voter.h for NEWGEN EXTENSION */
 #ifndef CONFIG_QPNP_SMBFG_NEWGEN_EXTENSION
-#define NUM_MAX_CLIENTS		16
+#define NUM_MAX_CLIENTS		10
 #endif
 #define DEBUG_FORCE_CLIENT	"DEBUG_FORCE_CLIENT"
 
