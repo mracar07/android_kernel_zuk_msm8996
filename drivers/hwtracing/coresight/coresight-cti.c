@@ -25,6 +25,7 @@
 #include <linux/of.h>
 #include <linux/coresight.h>
 #include <linux/coresight-cti.h>
+#include <linux/pinctrl/consumer.h>
 
 #include "coresight-priv.h"
 

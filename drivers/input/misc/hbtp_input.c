@@ -29,6 +29,7 @@
 #include <linux/of_gpio.h>
 #include <linux/delay.h>
 #include <linux/completion.h>
+#include <linux/pinctrl/consumer.h>
 
 #if defined(CONFIG_FB)
 #include <linux/notifier.h>
