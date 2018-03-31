@@ -392,6 +392,9 @@ static void msm_restart_prepare(const char *cmd)
 		__raw_writel(0x776655AA, restart_reason);
 #endif
 	}
+	} else if (in_panic) {
+		__raw_writel(0x77665501, restart_reason);
+	}
 
 	flush_cache_all();
 
