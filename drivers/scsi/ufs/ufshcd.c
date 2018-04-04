@@ -43,6 +43,7 @@
 #include <linux/nls.h>
 #include <linux/of.h>
 #include <linux/blkdev.h>
+#include <linux/pinctrl/consumer.h>
 
 #ifdef CONFIG_ARCH_SONY_YOSHINO
 #include <linux/fs.h>
