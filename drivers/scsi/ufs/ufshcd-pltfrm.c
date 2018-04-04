@@ -36,6 +36,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
+#include <linux/pinctrl/consumer.h>
 
 #include "ufshcd.h"
 #include "ufshcd-pltfrm.h"
