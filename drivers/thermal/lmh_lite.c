@@ -871,7 +871,6 @@ static int lmh_debug_read(struct lmh_debug_ops *ops, uint32_t **buf)
 	} else {
 		ret = scm_call2(SCM_SIP_FNID(SCM_SVC_LMH,
 			LMH_DEBUG_READ_BUF_SIZE), &desc_arg);
-		size = desc_arg.ret[0];
 	}
 	trace_lmh_event_call("GET_DEBUG_READ_SIZE exit");
 	if (ret) {
