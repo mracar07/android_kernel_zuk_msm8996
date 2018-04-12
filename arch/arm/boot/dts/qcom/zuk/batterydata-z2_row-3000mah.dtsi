@@ -2,7 +2,7 @@
 	qcom,default_2293785_lenovo_z2_3000mah_averaged_masterslave_jan18th2016 {
 		/* #2293785_Lenovo_Z2_3000mAh_averaged_MasterSlave_Jan18th2016*/
 		qcom,max-voltage-uv = <4400000>;
-		qcom,nom-batt-capacity-mah = <3000>;
+		qcom,nom-batt-capacity-mah = <3100>;
 		qcom,batt-id-kohm = <100>;
 		qcom,battery-beta = <4250>;
 		qcom,battery-type = "default_2293785_lenovo_z2_3000mah_averaged_masterslave_jan18th2016";
@@ -50,7 +50,7 @@
 	qcom,2343850_lenovo_z2drn_3000mah_averaged_masterslave_mar8th2016 {
 		/* #2343850_Lenovo_Z2DRN_3000mAh_averaged_MasterSlave_Mar8th2016*/
 		qcom,max-voltage-uv = <4400000>;
-		qcom,nom-batt-capacity-mah = <3000>;
+		qcom,nom-batt-capacity-mah = <3100>;
 		qcom,batt-id-kohm = <32>;
 		qcom,battery-beta = <4250>;
 		qcom,battery-type = "LGC_2343850_lenovo_z2drn_3000mah_averaged_masterslave_mar8th2016";
@@ -99,7 +99,7 @@
 	qcom,Coslight_2293785_lenovo_z2_3000mah_averaged_masterslave_jan18th2016 {
 		/* #2293785_Lenovo_Z2_3000mAh_averaged_MasterSlave_Jan18th2016*/
 		qcom,max-voltage-uv = <4400000>;
-		qcom,nom-batt-capacity-mah = <3000>;
+		qcom,nom-batt-capacity-mah = <3100>;
 		qcom,batt-id-kohm = <50>;
 		qcom,battery-beta = <4250>;
 		qcom,battery-type = "Coslight_2293785_lenovo_z2_3000mah_averaged_masterslave_jan18th2016";
