@@ -5086,7 +5086,7 @@ static int hdd_driver_rxfilter_comand_handler(uint8_t *command,
 	ret = kstrtou8(value, 10, &type);
 	if (ret < 0) {
 		hddLog(LOGE,
-			FL("kstrtou8 failed invalid input value %d"), type);
+			FL("kstrtou8 failed invalid input value"));
 		return -EINVAL;
 	}
 
@@ -12379,9 +12379,9 @@ err_init_adapter_mode:
 err_init_packet_filtering:
 	hdd_adapter_runtime_suspend_denit(adapter);
 
-	free_netdev(adapter->dev);
 	wlan_hdd_release_intf_addr(hdd_ctx,
 				   adapter->macAddressCurrent.bytes);
+	free_netdev(adapter->dev);
 
 	/* If bmps disabled enable it */
 	if (!hdd_ctx->cfg_ini->enablePowersaveOffload) {
@@ -16114,12 +16114,11 @@ static void hdd_state_info_dump(char **buf_ptr, uint16_t *size)
 
 	while (NULL != adapter_node && VOS_STATUS_SUCCESS == status) {
 		adapter = adapter_node->pAdapter;
-		if (adapter->dev) {
+		if (adapter->dev)
 			len += scnprintf(buf + len, *size - len,
 				"\n device name: %s", adapter->dev->name);
 		len += scnprintf(buf + len, *size - len,
 				"\n device_mode: %d", adapter->device_mode);
-		}
 		switch (adapter->device_mode) {
 		case WLAN_HDD_INFRA_STATION:
 		case WLAN_HDD_P2P_CLIENT:
