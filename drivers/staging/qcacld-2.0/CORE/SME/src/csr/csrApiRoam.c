@@ -13841,7 +13841,7 @@ eHalStatus csrRoamDelPMKIDfromCache( tpAniSirGlobal pMac, tANI_U32 sessionId,
                                          (v_MACADDR_t *)pmksa->BSSID))) {
                 fMatchFound = 1;
 
-            } else if ((!adf_os_mem_cmp(cached_pmksa->ssid,
+            } else if (pmksa->ssid_len && (!adf_os_mem_cmp(cached_pmksa->ssid,
                         pmksa->ssid, pmksa->ssid_len)) &&
                         (!adf_os_mem_cmp(cached_pmksa->cache_id,
                         pmksa->cache_id, CACHE_ID_LEN)))
@@ -18508,7 +18508,7 @@ eHalStatus csrRoamOffloadScan(tpAniSirGlobal pMac, tANI_U8 sessionId,
                        vos_nv_getChannelEnabledState(*ChannelList),
                        *ChannelList,
                        num_channels);
-            ChannelList++;
+              ChannelList++;
         }
         pRequestBuf->ConnectedNetwork.ChannelCount = num_channels;
         /* If the profile changes as to what it was earlier, inform the
