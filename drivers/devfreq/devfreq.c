@@ -48,7 +48,7 @@ static const char *boost_devices[] = {
 	"soc:qcom,cpubw",
 };
 
-#define WAKE_BOOST_DURATION_MS (3000)
+#define WAKE_BOOST_DURATION_MS (1000)
 static struct delayed_work wake_unboost_work;
 static struct work_struct wake_boost_work;
 
