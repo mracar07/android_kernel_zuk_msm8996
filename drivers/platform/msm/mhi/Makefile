@@ -12,3 +12,5 @@ obj-y += mhi_pm.o
 obj-y += mhi_ssr.o
 obj-y += mhi_event.o
 CFLAGS_mhi_iface.o := -I$(src)
+
+CFLAGS_mhi_bhi.o := $(call cc-disable-warning,maybe-uninitialized)
