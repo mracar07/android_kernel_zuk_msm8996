@@ -14911,7 +14911,8 @@ void __hdd_wlan_exit(void)
    }
 
    /* module exit should never proceed if SSR is not completed */
-   while(pHddCtx->isLogpInProgress){
+   while (!vos_is_ssr_failed() &&
+          pHddCtx->isLogpInProgress){
       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
             "%s:SSR in Progress; block rmmod for 1 second!!!",
             __func__);
@@ -16135,12 +16136,11 @@ static void hdd_state_info_dump(char **buf_ptr, uint16_t *size)
 
 	while (NULL != adapter_node && VOS_STATUS_SUCCESS == status) {
 		adapter = adapter_node->pAdapter;
-		if (adapter->dev) {
+		if (adapter->dev)
 			len += scnprintf(buf + len, *size - len,
 				"\n device name: %s", adapter->dev->name);
 		len += scnprintf(buf + len, *size - len,
 				"\n device_mode: %d", adapter->device_mode);
-		}
 		switch (adapter->device_mode) {
 		case WLAN_HDD_INFRA_STATION:
 		case WLAN_HDD_P2P_CLIENT:
@@ -18111,8 +18111,9 @@ static void hdd_driver_exit(void)
       vos_set_unload_in_progress(TRUE);
       rtnl_unlock();
 
-      while(pHddCtx->isLogpInProgress ||
-            vos_is_logp_in_progress(VOS_MODULE_ID_VOSS, NULL)) {
+      while (!vos_is_ssr_failed() &&
+             (pHddCtx->isLogpInProgress ||
+              vos_is_logp_in_progress(VOS_MODULE_ID_VOSS, NULL))) {
          VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
               "%s:SSR in Progress; block rmmod for 1 second!!!", __func__);
          msleep(1000);
@@ -19353,6 +19354,7 @@ void wlan_hdd_send_svc_nlink_msg(int radio, int type, void *data, int len)
         case WLAN_SVC_LTE_COEX_IND:
         case WLAN_SVC_WLAN_AUTO_SHUTDOWN_IND:
         case WLAN_SVC_WLAN_AUTO_SHUTDOWN_CANCEL_IND:
+        case WLAN_SVC_SSR_FAIL_IND:
             ani_hdr->length = 0;
             nlh->nlmsg_len = NLMSG_LENGTH((sizeof(tAniMsgHdr)));
             break;

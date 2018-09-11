@@ -8187,11 +8187,11 @@ eHalStatus sme_updateP2pIe(tHalHandle hHal, void *p2pIe, tANI_U32 p2pIeLength)
         {
             pMac->p2pContext.probeRspIeLength = p2pIeLength;
 
+            vos_mem_copy((tANI_U8 *)pMac->p2pContext.probeRspIe, p2pIe,
+                         p2pIeLength);
             sirDumpBuf( pMac, SIR_LIM_MODULE_ID, LOG2,
                         pMac->p2pContext.probeRspIe,
                         pMac->p2pContext.probeRspIeLength );
-            vos_mem_copy((tANI_U8 *)pMac->p2pContext.probeRspIe, p2pIe,
-                         p2pIeLength);
         }
 
         //release the lock for the sme object
@@ -9873,7 +9873,7 @@ eHalStatus sme_SetMaxTxPowerPerBand(eCsrBand band, v_S7_t dB,
 		  band, dB);
 
 	MTRACE(vos_trace(VOS_MODULE_ID_SME,
-			TRACE_CODE_SME_TX_WDA_MSG, NO_SESSION, msg.type=0));
+			TRACE_CODE_SME_TX_WDA_MSG, NO_SESSION, msg.type));
 
 	status = sme_AcquireGlobalLock(&mac_ctx->sme);
 	if (HAL_STATUS_SUCCESS(status)) {
@@ -20980,3 +20980,12 @@ eHalStatus sme_MotionDetBaseLineEnable(tHalHandle hHal, tSirMotionDetBaseLineEna
     return (status);
 }
 #endif
+
+uint32_t sme_unpack_rsn_ie(tHalHandle hal, uint8_t *buf,
+                           uint8_t buf_len,
+                           tDot11fIERSN *rsn_ie)
+{
+         tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+
+         return dot11fUnpackIeRSN(mac_ctx, buf, buf_len, rsn_ie);
+}
