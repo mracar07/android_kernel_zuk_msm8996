@@ -632,7 +632,7 @@ static ssize_t cclogic_reg_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct cclogic_dev *cclogic_dev = dev_get_drvdata(dev);
-	int size;
+	int size = 0;
 	int reg, value;
 
 	if(cclogic_dev->ops && cclogic_dev->ops->read){
